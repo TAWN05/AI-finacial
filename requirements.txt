@@ -1,0 +1,11 @@
+requests
+edgar
+langgraph
+langchain-google-genai
+langchain-openai
+langchain-core
+python-dotenv
+pydantic
+matplotlib
+massive
+typing_extensions
