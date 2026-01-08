@@ -14,8 +14,8 @@ failed_list = []
 # The SEC mandates descriptive User-Agent strings for scripted access.
 headers = {
     "User-Agent": "jo boulement jo@gmx.at",
-    "Accept-Encoding": "gzip, deflate"
-    }
+    "Accept-Encoding": "gzip, deflate",
+}
 
 def to_10_digits(n) -> str:
     """Return the zero-padded string format the SEC expects for CIKs."""
@@ -27,7 +27,7 @@ def to_10_digits(n) -> str:
         raise ValueError(f"Number longer than 10 digits: {n!r}")
     return s.zfill(10)
 
-payload={}
+payload = {}
 tickers_url = "https://www.sec.gov/files/company_tickers.json"
 
 
@@ -36,39 +36,6 @@ response_tickers = requests.request("GET", tickers_url, headers=headers, data=pa
 response_tickers = response_tickers.text
 response_tickers = response_tickers.lower()
 response_tickers = json.loads(response_tickers)
-user_input = input("enter ticker: ").lower()
-# ``company_tickers.json`` includes every CIK; scan until we locate the
-# requested symbol so we can construct the API URL below.
-for x in response_tickers:
-    if response_tickers[x]['ticker'] == user_input:
-        # Once the symbol matches we capture its CIK and stop searching.
-        cik = to_10_digits(response_tickers[x]['cik_str'])
-        current_ticker = response_tickers[x]['ticker']
-url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-response = requests.request("GET", url, headers=headers, data=payload)
-
-
-#with open(f"output/{current_ticker}-facts-json/full_{current_ticker}.json", 'r') as f:
-#    response = json.load(f)
-
-response = response.text
-response = response.lower()
-response = json.loads(response)
-eps_diluted = response['facts']['us-gaap']['earningspersharediluted']['units']['usd/shares']
-operating_cashflow = response['facts']['us-gaap']['netcashprovidedbyusedinoperatingactivities']['units']['usd']
-start_year = 2022
-eps_json = {
-    "company": current_ticker,
-    "metric": "epsd",
-}
-revenue_json = {
-    "company": current_ticker,
-    "metric": "total revenue",
-}
-cashflow_json = {
-    "company": current_ticker,
-    "metric": "operating cashflow",
-}
 rev_quarter_year = []
 rev_num = []
 
@@ -419,53 +386,112 @@ def rev_graph(start_year, all_frame_rev, revenue_json):
             #print("failed to add rev to revenue_json")
         z += 1
     return revenue_json
-all_frame_rev = rev(response)
-
-
 
 
 # Step through each calendar year sequentially so the derived structures are
 # populated continuously until we reach the stopping year.
-while True:
-    try: 
-        eps_json = eps(start_year, eps_json)
-    except:
-        pass
-        #print("failed eps")
-    try: 
-        cashflow_json = cashflow(start_year, cashflow_json)
-    except:
-        pass
-        #print("failed cashflow")
+def run_years(start_year, eps_json, cashflow_json, revenue_json, all_frame_rev):
+    while True:
+        try: 
+            eps_json = eps(start_year, eps_json)
+        except:
+            pass
+            #print("failed eps")
+        try: 
+            cashflow_json = cashflow(start_year, cashflow_json)
+        except:
+            pass
+            #print("failed cashflow")
+        try:
+            revenue_json = rev_graph(start_year, all_frame_rev, revenue_json)
+        except:
+            pass
+            #print("failed rev")
+        start_year = int(start_year)
+        start_year += 1
+        if start_year > 2025:
+            break
+
+    return eps_json, cashflow_json, revenue_json
+
+
+def process_ticker(user_input: str):
+    """Process a single ticker request without exiting the program."""
+
+    global eps_diluted, operating_cashflow, start_year
+
+    user_input = user_input.lower().strip()
+    if not user_input:
+        return False
+
+    # ``company_tickers.json`` includes every CIK; scan until we locate the
+    # requested symbol so we can construct the API URL below.
+    cik = None
+    for x in response_tickers:
+        if response_tickers[x]['ticker'] == user_input:
+            # Once the symbol matches we capture its CIK and stop searching.
+            cik = to_10_digits(response_tickers[x]['cik_str'])
+            current_ticker = response_tickers[x]['ticker']
+            break
+    if cik is None:
+        print(f"Ticker '{user_input}' not found.")
+        return False
+
+    url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+    response = requests.request("GET", url, headers=headers, data=payload)
+    response = response.text
+    response = response.lower()
+    response = json.loads(response)
+
+    eps_diluted = response['facts']['us-gaap']['earningspersharediluted']['units']['usd/shares']
+    operating_cashflow = response['facts']['us-gaap']['netcashprovidedbyusedinoperatingactivities']['units']['usd']
+    start_year = 2022
+    eps_json = {
+        "company": current_ticker,
+        "metric": "epsd",
+    }
+    revenue_json = {
+        "company": current_ticker,
+        "metric": "total revenue",
+    }
+    cashflow_json = {
+        "company": current_ticker,
+        "metric": "operating cashflow",
+    }
+    all_frame_rev = rev(response)
+    eps_json, cashflow_json, revenue_json = run_years(
+        start_year,
+        eps_json,
+        cashflow_json,
+        revenue_json,
+        all_frame_rev,
+    )
+
+    path_company = f"output/{current_ticker}-facts-json"
+    os.makedirs(path_company, exist_ok=True)
     try:
-        revenue_json = rev_graph(start_year, all_frame_rev, revenue_json)
-    except:
+        os.mkdir(path_company)
+    except FileExistsError:
+        #print("file alread exists")
         pass
-        #print("failed rev")
-    start_year = int(start_year)
-    start_year += 1
-    if start_year > 2025:
-        break
-    
-#print(rev_qy_deduped, rev_num_deduped)
-pretty_eps_json_output = json.dumps(eps_json, indent=4)
-#print(pretty_eps_json_output)
-pretty_cash_json_output = json.dumps(cashflow_json, indent=4)
-#print(pretty_cash_json_output)
-pretty_rev_json_output = json.dumps(revenue_json, indent=4)
-#print(pretty_rev_json_output)
-# Persist the derived data so it can be reused or inspected later.
-path_company = f"output/{current_ticker}-facts-json"
-os.makedirs(path_company, exist_ok=True)
-try:
-    os.mkdir(path_company)
-except FileExistsError:
-    #print("file alread exists")
-    pass
-#print(f"Nested directories '{path_company}' created (or already exist).")
-with open(f"{path_company}/epsd_{current_ticker}.json", 'w') as f:
-    json.dump(eps_json, f, indent=4)
-with open(f"{path_company}/cash_{current_ticker}.json", 'w') as f:
-    json.dump(cashflow_json, f, indent=4)
-with open(f"{path_company}/rev_{current_ticker}.json", 'w') as f:
-    json.dump(revenue_json, f, indent=4)
+
+    with open(f"{path_company}/epsd_{current_ticker}.json", 'w') as f:
+        json.dump(eps_json, f, indent=4)
+    with open(f"{path_company}/cash_{current_ticker}.json", 'w') as f:
+        json.dump(cashflow_json, f, indent=4)
+    with open(f"{path_company}/rev_{current_ticker}.json", 'w') as f:
+        json.dump(revenue_json, f, indent=4)
+    print(f"Finished processing {current_ticker}.")
+    return True
+
+
+def main():
+    while True:
+        user_input = input("enter ticker (or 'q' to quit): ")
+        if user_input.lower().strip() in ("q", "quit", "exit", ""):
+            break
+        process_ticker(user_input)
+
+
+if __name__ == "__main__":
+    main()

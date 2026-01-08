@@ -1,11 +1,21 @@
-import requests
 import json
-from pprint import pprint
-import matplotlib.pyplot as plt
-import re
 import os
+import re
 from math import isnan
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import requests
 from massive import RESTClient
+from scipy.stats import randint
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 client = RESTClient("kGEO8nQnqIpbJfiNu4LI5hfcUDPK4Kfc")
 
@@ -161,17 +171,3 @@ def clean_rows(delta_eps, delta_cash, delta_rev, current_ticker_list, stock_pric
         keep_stock_price.append(price)
 
     return keep_eps, keep_cash, keep_rev, keep_tickers, keep_stock_price, anomalies
-
-# --- Example with your sample data ---
-#delta_eps  = ["NAN", 99, 9123, "NAN"]
-#delta_cash = [1234, 144, "NAN", "NAN"]
-#delta_rev  = [1, 2, 3, 4]
-#current_ticker_list = ["bruh", "sigma", "test", "test2"]
-
-delta_eps, delta_cash, delta_rev, current_ticker_list, stock_price_rs, anomalies = clean_rows(
-    delta_eps, delta_cash, delta_rev, current_ticker_list, stock_price_rs
-)
-
-print("anomalies:", anomalies)
-#print(delta_eps, delta_cash, delta_rev, current_ticker_list)
-print(len(current_ticker_list))

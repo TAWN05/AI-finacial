@@ -75,7 +75,7 @@ for x in response_tickers:
 
             path_company = f"output/{current_ticker}-facts-json"
             os.makedirs(path_company, exist_ok=True)
-            time.sleep(0.5)
+            time.sleep(0.25)
             try:
                 os.mkdir(path_company)
             except FileExistsError:

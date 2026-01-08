@@ -9,3 +9,7 @@ pydantic
 matplotlib
 massive
 typing_extensions
+pandas
+numpy
+scikit-learn
+scipy

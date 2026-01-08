@@ -54,7 +54,7 @@ for x in response_tickers:
 
         eps_diluted = response['facts']['us-gaap']['earningspersharediluted']['units']['usd/shares']
         operating_cashflow = response['facts']['us-gaap']['netcashprovidedbyusedinoperatingactivities']['units']['usd']
-        start_year = 2022
+        start_year = 2020
         eps_json = {
             "company": current_ticker,
             "metric": "epsd",
@@ -477,9 +477,11 @@ for x in response_tickers:
             json.dump(cashflow_json, f, indent=4)
         with open(f"{path_company}/rev_{current_ticker}.json", 'w') as f:
             json.dump(revenue_json, f, indent=4)
+        print("pass")
 
     except:
         # Keep track of tickers whose cached data could not be parsed so we can
         # troubleshoot separately if needed.
         failed_list += [current_ticker]
         failed += 1
+        print("fail")
